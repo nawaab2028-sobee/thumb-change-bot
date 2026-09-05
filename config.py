@@ -12,7 +12,7 @@ DOWNLOAD_DIR = os.environ.get("DOWNLOAD_DIR", "downloads")
 # admin of. When set (a real chat id, not 0), every file the bot re-sends
 # also gets forwarded there as a durable backup living on Telegram's side
 # instead of only on local disk. Leave as 0 to disable this completely.
-LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "0") or 0)
+LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "-1004367489178") or 0)
 
 # ── Promo / watermark removal (used by the /MS command) ────────────────
 # Any OCR text found on the auto-generated video-cover frame that matches
@@ -21,6 +21,8 @@ LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "0") or 0)
 # just add a line here.
 PROMO_KEYWORDS = [
     "THEKMX",
+    "RIYO",
+    "SumitTripathi",
 ]
 
 # Generic patterns that catch "@anything" style channel handles, t.me
