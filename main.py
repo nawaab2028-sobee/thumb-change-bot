@@ -48,7 +48,7 @@ Or use /MS to strip a promo/watermark tag from a video's cover without changing 
 
 START_BTN = InlineKeyboardMarkup(
         [[
-        InlineKeyboardButton('Source Code', url='https://github.com/soebb/thumb-change-bot'),
+        InlineKeyboardButton('Updates', url='https://t.me/TeamCinderella'),
         ]]
     )
 
