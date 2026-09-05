@@ -9,8 +9,8 @@ import storage
 import promo_remover
 
 BOT_TOKEN = ""
-API_ID = ""
-API_HASH = ""
+API_ID = "22518279"
+API_HASH = "61e5cc94bc5e6318643707054e54caf4"
 
 Bot = Client(
     "Thumb-Bot",
