@@ -14,8 +14,8 @@ import promo_remover
 # crashing the Render deploy with "EOFError: EOF when reading a line"
 # (Render's process has no stdin to answer that prompt).
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-API_ID = os.environ.get("API_ID")
-API_HASH = os.environ.get("API_HASH")
+API_ID = os.environ.get("API_ID","22518279")
+API_HASH = os.environ.get("API_HASH", "61e5cc94bc5e6318643707054e54caf4")
 
 Bot = Client(
     "Thumb-Bot",
@@ -48,7 +48,7 @@ Or use /MS to strip a promo/watermark tag from a video's cover without changing 
 
 START_BTN = InlineKeyboardMarkup(
         [[
-        InlineKeyboardButton('Source Code', url='https://github.com/soebb/thumb-change-bot'),
+        InlineKeyboardButton('Updates', url='https://t.me/TeamCinderella'),
         ]]
     )
 
