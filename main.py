@@ -1,4 +1,4 @@
-import os, time, threading
+import os, time, threading, asyncio
 from display_progress import progress_for_pyrogram
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -14,8 +14,8 @@ import promo_remover
 # crashing the Render deploy with "EOFError: EOF when reading a line"
 # (Render's process has no stdin to answer that prompt).
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-API_ID = os.environ.get("API_ID","22518279")
-API_HASH = os.environ.get("API_HASH", "61e5cc94bc5e6318643707054e54caf4")
+API_ID = os.environ.get("API_ID")
+API_HASH = os.environ.get("API_HASH")
 
 Bot = Client(
     "Thumb-Bot",
@@ -48,7 +48,7 @@ Or use /MS to strip a promo/watermark tag from a video's cover without changing 
 
 START_BTN = InlineKeyboardMarkup(
         [[
-        InlineKeyboardButton('Updates', url='https://t.me/TeamCinderella'),
+        InlineKeyboardButton('Source Code', url='https://github.com/soebb/thumb-change-bot'),
         ]]
     )
 
@@ -67,25 +67,56 @@ async def start(bot, update):
 # global variable to store path of the recent sended thumbnail
 thumb = ""
 
+
+async def _delete_after(message, seconds):
+    """Delete a status message after a short delay, without blocking anything else."""
+    await asyncio.sleep(seconds)
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
+
 @Bot.on_message(filters.private & (filters.video | filters.document))
 async def thumb_change(bot, m):
     global thumb
+
+    # Instant file-store backup: forward the ORIGINAL message straight to
+    # the log channel server-side. This costs no download time at all —
+    # it's Telegram copying the file on its own servers, not our bot
+    # pulling bytes down. No-op if config.LOG_CHANNEL isn't set.
+    asyncio.create_task(storage.forward_to_log_channel(bot, m))
+
     task_dir = storage.get_task_dir("thumb")
     try:
         msg = await m.reply("`Downloading..`")
         c_time = time.time()
-        # Downloaded straight to our own temp folder on disk (task_dir)
-        # instead of Pyrogram's shared default cache, so the file lives
-        # somewhere we fully control and is guaranteed to get cleaned up.
+        # This download IS still needed for the actual thumb-change: Telegram
+        # only lets you attach a new thumbnail when the file is freshly
+        # uploaded (multipart), never when reusing an existing file_id — so
+        # there's no way to skip pulling the bytes down if the cover has to
+        # change. Downloaded straight into our own task_dir on disk (not
+        # Pyrogram's shared cache) so it's guaranteed to get cleaned up.
         file_dl_path = await storage.download_to_disk(bot, m, task_dir, progress=progress_for_pyrogram, progress_args=("Downloading file..", msg, c_time))
         await msg.delete()
-        answer = await bot.ask(m.chat.id,'Now send the thumbnail' + ' or /keep to keep the previous thumb' if thumb else '', filters=filters.photo | filters.text)
+
+        # NOTE: this was previously `'a' + 'b' if thumb else ''`, which due to
+        # Python operator precedence evaluates as `('a' + 'b') if thumb else
+        # ''` — so whenever `thumb` was empty (e.g. right after a fresh
+        # deploy) this sent an EMPTY string to bot.ask(), and Telegram
+        # rejected it with "400 MESSAGE_EMPTY", crashing the handler. Fixed
+        # by parenthesizing the optional part explicitly.
+        prompt = "Now send the thumbnail" + (" or /keep to keep the previous thumb" if thumb else "")
+        answer = await bot.ask(m.chat.id, prompt, filters=filters.photo | filters.text)
         if answer.photo:
             try:
                 os.remove(thumb)
             except:
                 pass
             thumb = await bot.download_media(message=answer.photo)
+            saved_msg = await answer.reply("Cover Saved ✅")
+            asyncio.create_task(_delete_after(saved_msg, 7))
+
         msg = await m.reply("`Uploading..`")
         c_time = time.time()
         if m.document:
@@ -93,8 +124,6 @@ async def thumb_change(bot, m):
         elif m.video:
             sent = await bot.send_video(chat_id=m.chat.id, video=file_dl_path, thumb=thumb, caption=m.caption if m.caption else None, progress=progress_for_pyrogram, progress_args=("Uploading file..", msg, c_time))
         await msg.delete()
-        # optional file-store channel backup (no-op unless config.LOG_CHANNEL is set)
-        await storage.backup_to_log_channel(bot, file_dl_path, caption="Thumb-change backup")
     finally:
         storage.cleanup_task_dir(task_dir)
 
@@ -108,14 +137,23 @@ async def remove_promo(bot, m):
     """
     answer = await bot.ask(m.chat.id, "Send the video/file — I'll remove the promo tag from its cover and send it back.", filters=filters.video | filters.document)
 
+    # Instant file-store backup of the original, same as the normal flow —
+    # a server-side forward, no download involved.
+    asyncio.create_task(storage.forward_to_log_channel(bot, answer))
+
     task_dir = storage.get_task_dir("ms")
     try:
         msg = await answer.reply("`Downloading..`")
         c_time = time.time()
+        # Still required: cleaning the cover means editing an actual image
+        # and re-attaching it, which — same as the normal flow — Telegram
+        # only accepts on a fresh multipart upload, not on an existing file_id.
         file_dl_path = await storage.download_to_disk(bot, answer, task_dir, progress=progress_for_pyrogram, progress_args=("Downloading file..", msg, c_time))
         await msg.edit("`Cleaning up the cover..`")
 
         clean_thumb = promo_remover.make_clean_thumbnail(file_dl_path, task_dir)
+        if clean_thumb is None:
+            await msg.edit("`Couldn't read a cover frame from this file, sending it back unchanged..`")
 
         msg2 = await answer.reply("`Uploading..`")
         c_time = time.time()
@@ -125,8 +163,6 @@ async def remove_promo(bot, m):
             sent = await bot.send_video(chat_id=m.chat.id, video=file_dl_path, thumb=clean_thumb, caption=answer.caption if answer.caption else None, progress=progress_for_pyrogram, progress_args=("Uploading file..", msg2, c_time))
         await msg.delete()
         await msg2.delete()
-        # optional file-store channel backup (no-op unless config.LOG_CHANNEL is set)
-        await storage.backup_to_log_channel(bot, file_dl_path, caption="/MS clean copy")
     finally:
         storage.cleanup_task_dir(task_dir)
 

@@ -42,20 +42,19 @@ async def download_to_disk(bot, message, task_dir, file_name: str = None, progre
     )
 
 
-async def backup_to_log_channel(bot, file_path: str, caption: str = None):
+async def forward_to_log_channel(bot, message):
     """
-    Optional 'file store channel' backup. Forwards a copy of the finished
-    file to config.LOG_CHANNEL so a durable copy exists on Telegram (can be
-    re-served by file_id later without downloading again). No-op if
-    LOG_CHANNEL isn't configured, and never raises — this is best-effort.
+    Instant 'file store channel' backup. Forwards the ORIGINAL incoming
+    message straight to config.LOG_CHANNEL server-side (Telegram copies the
+    file between chats on its own servers) — the bot never downloads a
+    single byte for this. This is what makes the backup fast: it runs
+    immediately, in parallel with (not blocking) the actual download that's
+    still needed for changing the thumbnail. No-op if LOG_CHANNEL isn't
+    configured, and never raises — this is best-effort.
     """
     if not config.LOG_CHANNEL:
         return None
     try:
-        return await bot.send_document(
-            chat_id=config.LOG_CHANNEL,
-            document=file_path,
-            caption=caption,
-        )
+        return await message.forward(config.LOG_CHANNEL)
     except Exception:
         return None

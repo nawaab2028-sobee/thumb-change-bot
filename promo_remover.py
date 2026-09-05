@@ -77,7 +77,16 @@ def _detect_promo_boxes(image, min_conf: int = 30):
     # a small contrast boost helps Tesseract pick it out from a busy scene.
     gray = cv2.convertScaleAbs(gray, alpha=1.3, beta=10)
 
-    data = pytesseract.image_to_data(gray, output_type=Output.DICT)
+    try:
+        data = pytesseract.image_to_data(gray, output_type=Output.DICT)
+    except Exception as e:
+        # Most commonly pytesseract.TesseractNotFoundError — the tesseract-ocr
+        # system package isn't installed on this host (see requirements.txt).
+        # Degrade gracefully instead of crashing the whole /MS flow: treat it
+        # as "no promo text found" so the video still gets sent back with its
+        # plain, unedited cover rather than failing outright.
+        print(f"[promo_remover] OCR unavailable, skipping text removal: {e}")
+        return []
 
     lines = {}
     for i in range(len(data["text"])):
