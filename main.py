@@ -1,16 +1,21 @@
-import os, time
+import os, time, threading
 from display_progress import progress_for_pyrogram
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyromod import listen
+from flask import Flask
 
 import config
 import storage
 import promo_remover
 
-BOT_TOKEN = ""
-API_ID = "22518279"
-API_HASH = "61e5cc94bc5e6318643707054e54caf4"
+# Must come from environment variables — if these are left blank, Pyrogram
+# falls back to *interactively* asking for them on stdin, which is what was
+# crashing the Render deploy with "EOFError: EOF when reading a line"
+# (Render's process has no stdin to answer that prompt).
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+API_ID = os.environ.get("API_ID")
+API_HASH = os.environ.get("API_HASH")
 
 Bot = Client(
     "Thumb-Bot",
@@ -18,6 +23,21 @@ Bot = Client(
     api_id = API_ID,
     api_hash = API_HASH
 )
+
+# ─── Flask keep-alive server for Render ───────────────────────────────────────
+flask_app = Flask(__name__)
+
+@flask_app.route('/')
+def index():
+    return 'Bot is running!'
+
+def run_flask():
+    port = int(os.environ.get("PORT", 8000))
+    flask_app.run(host="0.0.0.0", port=port)
+
+# Start Flask in background thread so Render detects open port
+threading.Thread(target=run_flask, daemon=True).start()
+# ─────────────────────────────────────────
 
 START_TXT = """
 Hi {}, I am video thumbnail changer Bot.

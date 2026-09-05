@@ -1,6 +1,7 @@
 pyrogram
 tgcrypto
 pyromod==1.4
+flask
 
 # added for /MS (promo/watermark text removal on video covers)
 opencv-python-headless
