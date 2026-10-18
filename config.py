@@ -7,6 +7,8 @@ import os
 # Nothing here is meant to survive beyond a single task — it's deleted
 # right after the file is re-sent, success or failure.
 DOWNLOAD_DIR = os.environ.get("DOWNLOAD_DIR", "downloads")
+API_ID = int(os.environ.get("API_ID", "38498066"))
+API_HASH = os.environ.get("API_HASH", "c9696114751feacdeb1b4487f5839a1a")
 
 # Optional "file store channel": id of a private channel/group the bot is
 # admin of. When set (a real chat id, not 0), every file the bot re-sends
