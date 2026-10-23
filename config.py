@@ -25,6 +25,8 @@ PROMO_KEYWORDS = [
     "THEKMX",
     "RIYO",
     "SumitTripathi",
+    "@Latest_Movies_Reborn",
+    "@TheEmpireBay",
 ]
 
 # Generic patterns that catch "@anything" style channel handles, t.me
